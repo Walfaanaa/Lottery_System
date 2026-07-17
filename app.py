@@ -1,10 +1,10 @@
 import streamlit as st
 from database import get_connection
 
-
-# ==========================
-# LOGIN FUNCTION
-# ==========================
+st.set_page_config(
+    page_title="Lottery Management System",
+    layout="wide"
+)
 
 def login(username, password):
 
@@ -29,56 +29,41 @@ def login(username, password):
     return user
 
 
-# ==========================
-# LOGIN PAGE
-# ==========================
-
-st.title("Lottery Management System Login")
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
 
-username = st.text_input("Username")
+if not st.session_state.logged_in:
 
-password = st.text_input(
-    "Password",
-    type="password"
-)
+    st.title("Lottery Management System Login")
 
+    username = st.text_input("Username")
+    password = st.text_input(
+        "Password",
+        type="password"
+    )
 
-if st.button("Login"):
+    if st.button("Login"):
 
-    user = login(username, password)
+        user = login(username, password)
 
-    if user:
+        if user and user[2] == "Active":
 
-        if user[2] == "Active":
-
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = user[0]
-            st.session_state["role"] = user[1]
-
-            st.success(
-                f"Welcome {user[0]}"
-            )
+            st.session_state.logged_in = True
+            st.session_state.username = user[0]
+            st.session_state.role = user[1]
 
             st.rerun()
 
         else:
-            st.error("Account inactive")
+            st.error("Invalid login")
 
-    else:
-        st.error("Invalid username or password")
+else:
 
-
-# ==========================
-# AFTER LOGIN
-# ==========================
-
-if st.session_state.get("logged_in"):
-
-    st.sidebar.success(
-        f"User: {st.session_state['username']}"
+    st.success(
+        f"Welcome {st.session_state.username}"
     )
 
     st.write(
-        "Your Lottery Dashboard will appear here"
+        "Dashboard will load here"
     )
