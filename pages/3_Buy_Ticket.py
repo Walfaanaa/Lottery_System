@@ -6,25 +6,37 @@ import uuid
 st.title("🎟 Buy Lottery Ticket")
 
 
-# Check login
-if "logged_in" not in st.session_state:
+# Secure session check
+if (
+    "logged_in" not in st.session_state
+    or not st.session_state["logged_in"]
+    or "user_id" not in st.session_state
+):
 
-    st.warning("Please login first")
+    st.warning(
+        "Please login first"
+    )
+
     st.stop()
 
 
 user_id = st.session_state["user_id"]
 
 
+st.info(
+    f"Customer: {st.session_state['full_name']}"
+)
+
+
 try:
 
     conn = get_connection()
+
     cursor = conn.cursor(dictionary=True)
 
 
-    # Lottery information
     lottery_type = st.selectbox(
-        "Select Lottery Type",
+        "Lottery Type",
         [
             "Weekly Lottery",
             "Monthly Lottery"
@@ -33,7 +45,7 @@ try:
 
 
     ticket_price = st.number_input(
-        "Ticket Price (ETB)",
+        "Ticket Price",
         min_value=10,
         value=100
     )
@@ -42,7 +54,6 @@ try:
     if st.button("Buy Ticket"):
 
 
-        # Generate ticket number
         ticket_number = (
             "LOT-"
             + str(uuid.uuid4())[:8].upper()
@@ -76,21 +87,19 @@ try:
 
 
         st.success(
-            "Ticket created successfully"
+            "Ticket purchased successfully"
         )
 
 
-        st.info(
-            f"""
-            Ticket Number:
-            {ticket_number}
+        st.write(
+            "Ticket Number:",
+            ticket_number
+        )
 
-            Amount:
-            {ticket_price} ETB
-
-            Status:
-            Pending
-            """
+        st.write(
+            "Amount:",
+            ticket_price,
+            "ETB"
         )
 
 
