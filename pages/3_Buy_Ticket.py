@@ -1,16 +1,15 @@
 import streamlit as st
 from database import get_connection
+import uuid
 
 
 st.title("🎟 Buy Lottery Ticket")
 
 
 # Check login
-
 if "logged_in" not in st.session_state:
 
     st.warning("Please login first")
-
     st.stop()
 
 
@@ -20,114 +19,79 @@ user_id = st.session_state["user_id"]
 try:
 
     conn = get_connection()
-
     cursor = conn.cursor(dictionary=True)
 
 
-    # Get active lottery
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM lotteries
-        WHERE status='Open'
-        LIMIT 1
-        """
-    )
-
-    lottery = cursor.fetchone()
-
-
-    if lottery is None:
-
-        st.error("No active lottery available")
-
-        st.stop()
-
-
-    st.subheader(
-        lottery["lottery_name"]
-    )
-
-    st.write(
-        "Ticket Price:",
-        lottery["ticket_price"],
-        "ETB"
+    # Lottery information
+    lottery_type = st.selectbox(
+        "Select Lottery Type",
+        [
+            "Weekly Lottery",
+            "Monthly Lottery"
+        ]
     )
 
 
-    # Available tickets
-
-    cursor.execute(
-        """
-        SELECT ticket_no
-        FROM tickets
-        WHERE lottery_id=%s
-        AND status='Available'
-        ORDER BY ticket_no
-        """,
-        (lottery["lottery_id"],)
+    ticket_price = st.number_input(
+        "Ticket Price (ETB)",
+        min_value=10,
+        value=100
     )
 
 
-    tickets = cursor.fetchall()
+    if st.button("Buy Ticket"):
 
 
-    available_numbers = [
-        row["ticket_no"]
-        for row in tickets
-    ]
-
-
-    if len(available_numbers) == 0:
-
-        st.error(
-            "🚨 All tickets have been sold!"
+        # Generate ticket number
+        ticket_number = (
+            "LOT-"
+            + str(uuid.uuid4())[:8].upper()
         )
 
-    else:
+
+        cursor.execute(
+            """
+            INSERT INTO tickets
+            (
+                user_id,
+                ticket_number,
+                lottery_type,
+                ticket_price,
+                status
+            )
+            VALUES
+            (%s,%s,%s,%s,%s)
+            """,
+            (
+                user_id,
+                ticket_number,
+                lottery_type,
+                ticket_price,
+                "Pending"
+            )
+        )
+
+
+        conn.commit()
+
 
         st.success(
-            f"Available Tickets: {len(available_numbers)}"
+            "Ticket created successfully"
         )
 
 
-        selected_ticket = st.selectbox(
-            "Select Ticket Number",
-            available_numbers
+        st.info(
+            f"""
+            Ticket Number:
+            {ticket_number}
+
+            Amount:
+            {ticket_price} ETB
+
+            Status:
+            Pending
+            """
         )
-
-
-        if st.button("Reserve Ticket"):
-
-
-            cursor.execute(
-                """
-                UPDATE tickets
-
-                SET
-                status='Pending',
-                buyer_id=%s
-
-                WHERE
-                lottery_id=%s
-                AND ticket_no=%s
-                AND status='Available'
-                """,
-                (
-                user_id,
-                lottery["lottery_id"],
-                selected_ticket
-                )
-            )
-
-
-            conn.commit()
-
-
-            st.success(
-                f"Ticket {selected_ticket} reserved successfully"
-            )
 
 
     cursor.close()
