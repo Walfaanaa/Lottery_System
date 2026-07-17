@@ -1,15 +1,20 @@
-import mysql.connector
-from config import DB_CONFIG
+import os
+import pymysql
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def get_connection():
-
-    conn = mysql.connector.connect(
-        host=DB_CONFIG["host"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        database=DB_CONFIG["database"],
-        auth_plugin="mysql_native_password"
+    connection = pymysql.connect(
+        host=os.getenv("DB_HOST"),
+        port=int(os.getenv("DB_PORT")),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
+        ssl={
+            "ssl": {}
+        }
     )
 
-    return conn
+    return connection
