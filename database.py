@@ -1,14 +1,15 @@
-import streamlit as st
-import pymysql
+import os
+from dotenv import load_dotenv
+import mysql.connector
 
+load_dotenv()
 
 def get_connection():
 
-    return pymysql.connect(
-        host=st.secrets["DB_HOST"],
-        port=int(st.secrets["DB_PORT"]),
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASSWORD"],
-        database=st.secrets["DB_NAME"],
-        ssl={"ssl": {}}
+    return mysql.connector.connect(
+        host=os.getenv("DB_HOST"),
+        port=int(os.getenv("DB_PORT")),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME")
     )
