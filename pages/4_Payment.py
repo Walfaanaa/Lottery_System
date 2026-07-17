@@ -1,231 +1,233 @@
 import streamlit as st
 from database import get_connection
 import os
+import uuid
 
+st.set_page_config(page_title="Lottery Payment", layout="centered")
 
 st.title("💳 Lottery Payment")
 
+# ======================================================
+# CHECK LOGIN
+# ======================================================
+if (
+    not st.session_state.get("logged_in", False)
+    or "user_id" not in st.session_state
+):
+    st.warning("Your session has expired. Please login again.")
 
-# Check login
-if "logged_in" not in st.session_state:
-    st.warning("Please login first")
+    try:
+        st.switch_page("app.py")
+    except Exception:
+        pass
+
     st.stop()
 
+buyer_id = st.session_state.get("user_id")
 
-buyer_id = st.session_state["user_id"]
-
+conn = None
+cursor = None
 
 try:
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
 
-
-    # Get user's pending ticket
+    # ======================================================
+    # GET PENDING TICKET
+    # ======================================================
 
     cursor.execute(
         """
-        SELECT 
-            t.ticket_id,
-            t.ticket_no,
-            t.price
-        FROM tickets t
-        WHERE t.buyer_id=%s
-        AND t.status='Pending'
+        SELECT
+            ticket_id,
+            ticket_no,
+            price,
+            payment_id
+        FROM tickets
+        WHERE buyer_id=%s
+        AND status='Pending'
+        LIMIT 1
         """,
         (buyer_id,)
     )
 
     ticket = cursor.fetchone()
 
-
     if ticket is None:
-
-        st.warning(
-            "No pending ticket found. Please reserve a ticket first."
-        )
-
+        st.warning("No pending ticket found. Please reserve a ticket first.")
         st.stop()
 
+    # ======================================================
+    # CHECK DUPLICATE PAYMENT
+    # ======================================================
 
-    st.success(
-        f"Ticket Number: {ticket['ticket_no']}"
+    cursor.execute(
+        """
+        SELECT payment_id
+        FROM payments
+        WHERE ticket_id=%s
+        """,
+        (ticket["ticket_id"],)
     )
 
-    st.write(
-        "Payment Amount:",
-        ticket["price"],
-        "ETB"
-    )
+    payment = cursor.fetchone()
 
+    if payment:
+        st.info("Payment has already been submitted for this ticket.")
+        st.stop()
 
-    # Get active banks
+    # ======================================================
+    # SHOW TICKET
+    # ======================================================
+
+    st.success(f"🎟 Ticket Number: {ticket['ticket_no']}")
+    st.write(f"**Payment Amount:** {ticket['price']} ETB")
+
+    # ======================================================
+    # LOAD BANKS
+    # ======================================================
 
     cursor.execute(
         """
         SELECT *
         FROM banks
         WHERE status='Active'
+        ORDER BY bank_name
         """
     )
 
     banks = cursor.fetchall()
 
+    if not banks:
+        st.error("No active bank account found.")
+        st.stop()
 
-    bank_names = [
-        bank["bank_name"]
-        for bank in banks
-    ]
-
+    bank_names = [bank["bank_name"] for bank in banks]
 
     selected_bank = st.selectbox(
         "Select Payment Bank",
         bank_names
     )
 
-
     bank_info = next(
-        bank for bank in banks
+        bank
+        for bank in banks
         if bank["bank_name"] == selected_bank
     )
 
-
     st.info(
         f"""
-Bank: {bank_info['bank_name']}
+**Bank:** {bank_info['bank_name']}
 
-Account Name:
-{bank_info['account_name']}
+**Account Name:** {bank_info['account_name']}
 
-Account Number:
-{bank_info['account_number']}
+**Account Number:** {bank_info['account_number']}
 """
     )
 
+    # ======================================================
+    # PAYMENT FORM
+    # ======================================================
 
     receipt = st.file_uploader(
-        "Upload Payment Receipt",
-        type=[
-            "png",
-            "jpg",
-            "jpeg",
-            "pdf"
-        ]
+        "Upload Receipt",
+        type=["png", "jpg", "jpeg", "pdf"]
     )
-
 
     transaction_reference = st.text_input(
         "Transaction Reference"
     )
 
+    # ======================================================
+    # SUBMIT
+    # ======================================================
 
-    if st.button("Submit Payment"):
-
+    if st.button("Submit Payment", use_container_width=True):
 
         if receipt is None:
+            st.error("Please upload your payment receipt.")
 
-            st.error(
-                "Please upload receipt"
-            )
-
-        elif transaction_reference == "":
-
-            st.error(
-                "Enter transaction reference"
-            )
+        elif transaction_reference.strip() == "":
+            st.error("Please enter the transaction reference.")
 
         else:
 
-
-            # Save receipt
-
             upload_folder = "uploads"
+            os.makedirs(upload_folder, exist_ok=True)
 
-            os.makedirs(
-                upload_folder,
-                exist_ok=True
-            )
+            extension = os.path.splitext(receipt.name)[1]
 
+            filename = f"{uuid.uuid4().hex}{extension}"
 
-            file_path = os.path.join(
-                upload_folder,
-                receipt.name
-            )
+            file_path = os.path.join(upload_folder, filename)
 
-
-            with open(
-                file_path,
-                "wb"
-            ) as f:
-
-                f.write(
-                    receipt.getbuffer()
-                )
-
-
-            # Insert payment
+            with open(file_path, "wb") as f:
+                f.write(receipt.getbuffer())
 
             cursor.execute(
                 """
                 INSERT INTO payments
                 (
-                buyer_id,
-                ticket_id,
-                bank_id,
-                amount,
-                receipt_file,
-                transaction_reference,
-                status
+                    buyer_id,
+                    ticket_id,
+                    bank_id,
+                    amount,
+                    receipt_file,
+                    transaction_reference,
+                    status
                 )
                 VALUES
                 (
-                %s,%s,%s,%s,%s,%s,
-                'Pending'
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    'Pending'
                 )
                 """,
                 (
-                buyer_id,
-                ticket["ticket_id"],
-                bank_info["bank_id"],
-                ticket["price"],
-                file_path,
-                transaction_reference
+                    buyer_id,
+                    ticket["ticket_id"],
+                    bank_info["bank_id"],
+                    ticket["price"],
+                    file_path,
+                    transaction_reference.strip()
                 )
             )
 
-
             payment_id = cursor.lastrowid
-
-
-            # Link payment to ticket
 
             cursor.execute(
                 """
                 UPDATE tickets
-
                 SET payment_id=%s
-
                 WHERE ticket_id=%s
                 """,
                 (
-                payment_id,
-                ticket["ticket_id"]
+                    payment_id,
+                    ticket["ticket_id"]
                 )
             )
 
-
             conn.commit()
 
-
-            st.success(
-                "Payment submitted successfully. Waiting for approval."
-            )
-
-
-    cursor.close()
-    conn.close()
-
+            st.success("✅ Payment submitted successfully.")
+            st.info("Waiting for administrator approval.")
 
 except Exception as e:
 
-    st.error(e)
+    if conn:
+        conn.rollback()
+
+    st.error(f"Error: {e}")
+
+finally:
+
+    if cursor:
+        cursor.close()
+
+    if conn:
+        conn.close()
