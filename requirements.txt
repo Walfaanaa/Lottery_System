@@ -1,6 +1,7 @@
 streamlit
 pandas
-plotly
 pymysql
+plotly
 openpyxl
 python-dotenv
+bcrypt
