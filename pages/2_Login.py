@@ -6,6 +6,26 @@ from database import get_connection
 st.title("🔐 User Login")
 
 
+# If already logged in
+if "logged_in" in st.session_state and st.session_state["logged_in"]:
+
+    st.success(
+        f"Already logged in as {st.session_state['full_name']}"
+    )
+
+    st.write(
+        "Role:",
+        st.session_state["role"]
+    )
+
+    if st.button("Logout"):
+
+        st.session_state.clear()
+        st.rerun()
+
+    st.stop()
+
+
 username = st.text_input("Username")
 
 password = st.text_input(
@@ -22,9 +42,10 @@ if st.button("Login"):
 
         cursor = conn.cursor(dictionary=True)
 
+
         cursor.execute(
             """
-            SELECT 
+            SELECT
                 id,
                 username,
                 password,
@@ -39,6 +60,7 @@ if st.button("Login"):
             (username,)
         )
 
+
         user = cursor.fetchone()
 
 
@@ -49,23 +71,24 @@ if st.button("Login"):
 
         else:
 
-            stored_password = user["password"]
+            if user["status"] != "Active":
+
+                st.error(
+                    "Account is inactive"
+                )
+
+            else:
+
+                stored_password = user["password"]
 
 
-            if bcrypt.checkpw(
-                password.encode("utf-8"),
-                stored_password.encode("utf-8")
-            ):
+                if bcrypt.checkpw(
+                    password.encode("utf-8"),
+                    stored_password.encode("utf-8")
+                ):
 
-                if user["status"] == "Inactive":
 
-                    st.error(
-                        "Your account is inactive"
-                    )
-
-                else:
-
-                    # Save login session
+                    # Create session
                     st.session_state["logged_in"] = True
                     st.session_state["user_id"] = user["id"]
                     st.session_state["username"] = user["username"]
@@ -77,17 +100,14 @@ if st.button("Login"):
                         f"Welcome {user['full_name']} ✅"
                     )
 
-                    st.write(
-                        "Role:",
-                        user["role"]
+                    st.rerun()
+
+
+                else:
+
+                    st.error(
+                        "Incorrect password"
                     )
-
-
-            else:
-
-                st.error(
-                    "Incorrect password"
-                )
 
 
         cursor.close()
