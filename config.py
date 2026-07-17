@@ -1,11 +1,12 @@
 import os
+import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DB_CONFIG = {
-    "host": os.getenv("DB_HOST"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME"),
+    "host": st.secrets.get("DB_HOST", os.getenv("DB_HOST")),
+    "user": st.secrets.get("DB_USER", os.getenv("DB_USER")),
+    "password": st.secrets.get("DB_PASSWORD", os.getenv("DB_PASSWORD")),
+    "database": st.secrets.get("DB_NAME", os.getenv("DB_NAME")),
 }
