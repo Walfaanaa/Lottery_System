@@ -22,16 +22,22 @@ if st.button("Login"):
 
         cursor = conn.cursor(dictionary=True)
 
-
         cursor.execute(
             """
-            SELECT *
+            SELECT 
+                id,
+                username,
+                password,
+                email,
+                role,
+                status,
+                full_name,
+                phone
             FROM users
             WHERE username=%s
             """,
             (username,)
         )
-
 
         user = cursor.fetchone()
 
@@ -59,16 +65,17 @@ if st.button("Login"):
 
                 else:
 
+                    # Save login session
                     st.session_state["logged_in"] = True
-                    st.session_state["user_id"] = user["user_id"]
+                    st.session_state["user_id"] = user["id"]
                     st.session_state["username"] = user["username"]
                     st.session_state["role"] = user["role"]
+                    st.session_state["full_name"] = user["full_name"]
 
 
                     st.success(
                         f"Welcome {user['full_name']} ✅"
                     )
-
 
                     st.write(
                         "Role:",
