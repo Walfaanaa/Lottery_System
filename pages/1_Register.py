@@ -10,13 +10,21 @@ st.title("📝 Lottery Customer Registration")
 # REGISTRATION FORM
 # ==============================
 
-full_name = st.text_input("Full Name")
+full_name = st.text_input(
+    "Full Name"
+)
 
-email = st.text_input("Email")
+email = st.text_input(
+    "Email"
+)
 
-phone = st.text_input("Phone Number")
+phone = st.text_input(
+    "Phone Number"
+)
 
-username = st.text_input("Username")
+username = st.text_input(
+    "Username"
+)
 
 password = st.text_input(
     "Password",
@@ -32,7 +40,7 @@ password = st.text_input(
 if st.button("Register"):
 
 
-    # Clean input values
+    # Remove spaces
 
     full_name = full_name.strip()
     email = email.strip()
@@ -43,15 +51,16 @@ if st.button("Register"):
 
 
     # ==============================
-    # REQUIRED FIELD CHECK
+    # VALIDATION
     # ==============================
 
-    if any([
-        not full_name,
-        not username,
-        not password,
-        not phone
-    ]):
+    if (
+        full_name == ""
+        or email == ""
+        or phone == ""
+        or username == ""
+        or password == ""
+    ):
 
         st.warning(
             "Please fill all required fields."
@@ -84,17 +93,20 @@ if st.button("Register"):
             FROM users
             WHERE username=%s
             """,
-            (username,)
+            (
+                username,
+            )
         )
 
 
-        existing_user = cursor.fetchone()
+        user_exists = cursor.fetchone()
 
 
-        if existing_user:
+
+        if user_exists:
 
             st.error(
-                "Username already exists. Please choose another."
+                "Username already exists. Please use another username."
             )
 
             st.stop()
@@ -102,7 +114,7 @@ if st.button("Register"):
 
 
         # ==============================
-        # ENCRYPT PASSWORD
+        # HASH PASSWORD
         # ==============================
 
         hashed_password = bcrypt.hashpw(
@@ -133,8 +145,8 @@ if st.button("Register"):
                 %s,
                 %s,
                 %s,
-                'customer',
-                'Active',
+                %s,
+                %s,
                 %s,
                 %s
             )
@@ -143,6 +155,8 @@ if st.button("Register"):
                 username,
                 hashed_password,
                 email,
+                "customer",
+                "Active",
                 full_name,
                 phone
             )
