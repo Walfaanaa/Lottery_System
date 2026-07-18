@@ -1,6 +1,6 @@
 import streamlit as st
 from database import get_connection
-import uuid
+import random
 
 
 st.title("🎟 Buy Lottery Ticket")
@@ -13,10 +13,7 @@ if (
     or "user_id" not in st.session_state
 ):
 
-    st.warning(
-        "Please login first"
-    )
-
+    st.warning("Please login first")
     st.stop()
 
 
@@ -54,12 +51,44 @@ try:
     if st.button("Buy Ticket"):
 
 
-        ticket_number = (
-            "LOT-"
-            + str(uuid.uuid4())[:8].upper()
+        # Get already sold ticket numbers
+        cursor.execute(
+            """
+            SELECT ticket_number
+            FROM tickets
+            """
         )
 
 
+        sold_numbers = [
+            row["ticket_number"]
+            for row in cursor.fetchall()
+        ]
+
+
+        # Available numbers 1-100
+        available_numbers = [
+            x for x in range(1, 101)
+            if x not in sold_numbers
+        ]
+
+
+        if not available_numbers:
+
+            st.error(
+                "All lottery tickets have been sold!"
+            )
+
+            st.stop()
+
+
+        # Select ticket number
+        ticket_number = random.choice(
+            available_numbers
+        )
+
+
+        # Insert purchased ticket
         cursor.execute(
             """
             INSERT INTO tickets
@@ -71,14 +100,20 @@ try:
                 status
             )
             VALUES
-            (%s,%s,%s,%s,%s)
+            (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+            )
             """,
             (
                 user_id,
                 ticket_number,
                 lottery_type,
                 ticket_price,
-                "Pending"
+                "Sold"
             )
         )
 
@@ -87,7 +122,7 @@ try:
 
 
         st.success(
-            "Ticket purchased successfully"
+            "Ticket purchased successfully ✅"
         )
 
 
@@ -95,6 +130,7 @@ try:
             "Ticket Number:",
             ticket_number
         )
+
 
         st.write(
             "Amount:",
