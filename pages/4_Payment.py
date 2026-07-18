@@ -173,11 +173,11 @@ Ticket number will be assigned after payment approval.
 
     st.info(
         f"""
-Bank: {bank_info['bank_name']}
+Bank: {bank_info['CBE']}
 
-Account Name: {bank_info['account_name']}
+Account Name: {bank_info['Walfaanaa Magarsaa']}
 
-Account Number: {bank_info['account_number']}
+Account Number: {bank_info['1000177190024']}
 """
     )
 
