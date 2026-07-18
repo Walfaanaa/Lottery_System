@@ -8,6 +8,7 @@ st.title("Lottery Customer Registration")
 
 full_name = st.text_input("Full Name")
 email = st.text_input("Email")
+phone = st.text_input("Phone Number")
 username = st.text_input("Username")
 password = st.text_input(
     "Password",
@@ -17,7 +18,7 @@ password = st.text_input(
 
 if st.button("Register"):
 
-    if not full_name or not username or not password:
+    if not full_name or not username or not password or not phone:
         st.warning("Please fill all required fields.")
         st.stop()
 
@@ -35,7 +36,6 @@ if st.button("Register"):
         ).decode()
 
 
-        # Save encrypted password
         cursor.execute(
             """
             INSERT INTO users
@@ -45,7 +45,8 @@ if st.button("Register"):
                 email,
                 role,
                 status,
-                full_name
+                full_name,
+                phone
             )
             VALUES
             (
@@ -54,6 +55,7 @@ if st.button("Register"):
                 %s,
                 'customer',
                 'Active',
+                %s,
                 %s
             )
             """,
@@ -61,7 +63,8 @@ if st.button("Register"):
                 username,
                 hashed_password,
                 email,
-                full_name
+                full_name,
+                phone
             )
         )
 
