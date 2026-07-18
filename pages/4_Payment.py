@@ -1,7 +1,5 @@
 import streamlit as st
 from database import get_connection
-import os
-import uuid
 
 
 st.set_page_config(
@@ -22,10 +20,7 @@ if (
     or "user_id" not in st.session_state
 ):
 
-    st.warning(
-        "Your session has expired. Please login again."
-    )
-
+    st.warning("Please login first")
     st.stop()
 
 
@@ -44,7 +39,7 @@ try:
 
 
     # ======================================================
-    # GET CUSTOMER TICKET
+    # FIND CUSTOMER TICKET
     # ======================================================
 
     cursor.execute(
@@ -84,7 +79,7 @@ try:
         """
         SELECT
             id,
-            status
+            payment_status
         FROM payments
         WHERE ticket_id=%s
         AND user_id=%s
@@ -110,7 +105,7 @@ try:
 
 
     # ======================================================
-    # PAYMENT INFORMATION
+    # SHOW PAYMENT INFORMATION
     # ======================================================
 
     st.info(
@@ -126,7 +121,7 @@ Amount: {ticket['ticket_price']} ETB
 
 
     # ======================================================
-    # LOAD ACTIVE BANKS
+    # LOAD BANK ACCOUNT
     # ======================================================
 
     cursor.execute(
@@ -189,19 +184,8 @@ Account Number: {bank_info['account_number']}
 
 
     # ======================================================
-    # PAYMENT DETAILS
+    # PAYMENT INPUT
     # ======================================================
-
-    receipt = st.file_uploader(
-        "Upload Payment Receipt",
-        type=[
-            "png",
-            "jpg",
-            "jpeg",
-            "pdf"
-        ]
-    )
-
 
     transaction_reference = st.text_input(
         "Transaction Reference"
@@ -219,14 +203,7 @@ Account Number: {bank_info['account_number']}
     ):
 
 
-        if receipt is None:
-
-            st.error(
-                "Please upload receipt."
-            )
-
-
-        elif transaction_reference.strip() == "":
+        if transaction_reference.strip() == "":
 
             st.error(
                 "Please enter transaction reference."
@@ -236,45 +213,7 @@ Account Number: {bank_info['account_number']}
         else:
 
 
-            # Save receipt
-
-            upload_folder = "uploads"
-
-            os.makedirs(
-                upload_folder,
-                exist_ok=True
-            )
-
-
-            extension = os.path.splitext(
-                receipt.name
-            )[1]
-
-
-            filename = (
-                f"{uuid.uuid4().hex}"
-                f"{extension}"
-            )
-
-
-            file_path = os.path.join(
-                upload_folder,
-                filename
-            )
-
-
-            with open(
-                file_path,
-                "wb"
-            ) as f:
-
-                f.write(
-                    receipt.getbuffer()
-                )
-
-
-
-            # Insert payment record
+            # Insert payment
 
             cursor.execute(
                 """
@@ -283,14 +222,12 @@ Account Number: {bank_info['account_number']}
                     user_id,
                     ticket_id,
                     bank_id,
-                    amount,
-                    receipt_file,
                     transaction_reference,
-                    status
+                    amount,
+                    payment_status
                 )
                 VALUES
                 (
-                    %s,
                     %s,
                     %s,
                     %s,
@@ -303,15 +240,14 @@ Account Number: {bank_info['account_number']}
                     user_id,
                     ticket["id"],
                     bank_info["bank_id"],
-                    ticket["ticket_price"],
-                    file_path,
-                    transaction_reference.strip()
+                    transaction_reference.strip(),
+                    ticket["ticket_price"]
                 )
             )
 
 
 
-            # Update ticket status
+            # Update ticket
 
             cursor.execute(
                 """
@@ -325,8 +261,8 @@ Account Number: {bank_info['account_number']}
             )
 
 
-
             conn.commit()
+
 
 
             st.success(
@@ -342,11 +278,9 @@ Account Number: {bank_info['account_number']}
 
 except Exception as e:
 
-
     if conn:
 
         conn.rollback()
-
 
     st.error(
         f"Error: {e}"
@@ -356,11 +290,9 @@ except Exception as e:
 
 finally:
 
-
     if cursor:
 
         cursor.close()
-
 
     if conn:
 
