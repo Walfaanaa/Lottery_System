@@ -28,13 +28,14 @@ if st.button("Register"):
 
     try:
 
-        # Encrypt password using bcrypt
+        # Automatically encrypt customer password
         hashed_password = bcrypt.hashpw(
             password.encode("utf-8"),
             bcrypt.gensalt()
         ).decode()
 
 
+        # Save encrypted password
         cursor.execute(
             """
             INSERT INTO users
@@ -76,13 +77,7 @@ if st.button("Register"):
     except Exception as e:
 
         conn.rollback()
-
-        if "Duplicate" in str(e):
-            st.error(
-                "Username already exists."
-            )
-        else:
-            st.error(e)
+        st.error(e)
 
 
     finally:
