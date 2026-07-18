@@ -42,14 +42,16 @@ if st.button("Register"):
 
 
 
-    # Required fields check
+    # ==============================
+    # REQUIRED FIELD CHECK
+    # ==============================
 
-    if (
-        full_name == ""
-        or username == ""
-        or password == ""
-        or phone == ""
-    ):
+    if any([
+        not full_name,
+        not username,
+        not password,
+        not phone
+    ]):
 
         st.warning(
             "Please fill all required fields."
@@ -76,7 +78,6 @@ if st.button("Register"):
         # CHECK DUPLICATE USERNAME
         # ==============================
 
-
         cursor.execute(
             """
             SELECT id
@@ -90,7 +91,6 @@ if st.button("Register"):
         existing_user = cursor.fetchone()
 
 
-
         if existing_user:
 
             st.error(
@@ -102,9 +102,8 @@ if st.button("Register"):
 
 
         # ==============================
-        # HASH PASSWORD
+        # ENCRYPT PASSWORD
         # ==============================
-
 
         hashed_password = bcrypt.hashpw(
             password.encode("utf-8"),
@@ -116,7 +115,6 @@ if st.button("Register"):
         # ==============================
         # INSERT CUSTOMER
         # ==============================
-
 
         cursor.execute(
             """
@@ -151,13 +149,17 @@ if st.button("Register"):
         )
 
 
-
         conn.commit()
 
 
 
         st.success(
             "✅ Registration successful. Please login."
+        )
+
+
+        st.info(
+            "You can now login and buy lottery tickets."
         )
 
 
