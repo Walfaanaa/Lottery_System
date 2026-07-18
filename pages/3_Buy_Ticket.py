@@ -1,12 +1,14 @@
 import streamlit as st
 from database import get_connection
-import random
 
 
 st.title("🎟 Buy Lottery Ticket")
 
 
-# Secure session check
+# ======================================================
+# CHECK LOGIN
+# ======================================================
+
 if (
     "logged_in" not in st.session_state
     or not st.session_state["logged_in"]
@@ -23,6 +25,10 @@ user_id = st.session_state["user_id"]
 st.info(
     f"Customer: {st.session_state['full_name']}"
 )
+
+
+conn = None
+cursor = None
 
 
 try:
@@ -51,44 +57,35 @@ try:
     if st.button("Buy Ticket"):
 
 
-        # Get already sold ticket numbers
+        # Check existing pending ticket
+
         cursor.execute(
             """
-            SELECT ticket_number
+            SELECT id
             FROM tickets
-            """
+            WHERE user_id=%s
+            AND status IN ('Pending Payment','Payment Submitted')
+            LIMIT 1
+            """,
+            (user_id,)
         )
 
 
-        sold_numbers = [
-            row["ticket_number"]
-            for row in cursor.fetchall()
-        ]
+        existing_ticket = cursor.fetchone()
 
 
-        # Available numbers 1-100
-        available_numbers = [
-            x for x in range(1, 101)
-            if x not in sold_numbers
-        ]
+        if existing_ticket:
 
-
-        if not available_numbers:
-
-            st.error(
-                "All lottery tickets have been sold!"
+            st.warning(
+                "You already have a pending payment ticket."
             )
 
             st.stop()
 
 
-        # Select ticket number
-        ticket_number = random.choice(
-            available_numbers
-        )
 
+        # Create ticket reservation WITHOUT number
 
-        # Insert purchased ticket
         cursor.execute(
             """
             INSERT INTO tickets
@@ -102,18 +99,16 @@ try:
             VALUES
             (
                 %s,
+                NULL,
                 %s,
                 %s,
-                %s,
-                %s
+                'Pending Payment'
             )
             """,
             (
                 user_id,
-                ticket_number,
                 lottery_type,
-                ticket_price,
-                "Sold"
+                ticket_price
             )
         )
 
@@ -122,27 +117,34 @@ try:
 
 
         st.success(
-            "Ticket purchased successfully ✅"
+            "Ticket reservation created successfully ✅"
         )
 
 
-        st.write(
-            "Ticket Number:",
-            ticket_number
+        st.info(
+            """
+Please complete payment.
+
+Your ticket number will be assigned after payment approval.
+"""
         )
 
-
-        st.write(
-            "Amount:",
-            ticket_price,
-            "ETB"
-        )
-
-
-    cursor.close()
-    conn.close()
 
 
 except Exception as e:
 
-    st.error(e)
+    if conn:
+        conn.rollback()
+
+    st.error(
+        f"Error: {e}"
+    )
+
+
+finally:
+
+    if cursor:
+        cursor.close()
+
+    if conn:
+        conn.close()
