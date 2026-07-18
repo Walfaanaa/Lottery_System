@@ -3,20 +3,22 @@ from database import get_connection
 import random
 
 
-st.title("🎯 Lottery Draw")
+st.title("🎲 Lottery Draw")
 
 
 # ==============================
-# CHECK ADMIN
+# ADMIN CHECK
 # ==============================
 
-if "logged_in" not in st.session_state:
+if not st.session_state.get("logged_in", False):
+
     st.warning("Please login first")
     st.stop()
 
 
-if st.session_state.get("role") != "Admin":
-    st.error("Admin only")
+if st.session_state.get("role","").lower() != "admin":
+
+    st.error("Access denied. Admin only.")
     st.stop()
 
 
@@ -27,92 +29,37 @@ cursor = conn.cursor(dictionary=True)
 
 
 # ==============================
-# LOAD LOTTERY
-# ==============================
-
-cursor.execute(
-    """
-    SELECT *
-    FROM lotteries
-    WHERE status='Open'
-    """
-)
-
-lottery = cursor.fetchone()
-
-
-if lottery is None:
-
-    st.warning(
-        "No open lottery found"
-    )
-
-    st.stop()
-
-
-
-st.success(
-    lottery["lottery_name"]
-)
-
-
-
-# ==============================
-# CHECK EXISTING WINNER
-# ==============================
-
-cursor.execute(
-    """
-    SELECT COUNT(*) AS total
-    FROM winners
-    WHERE lottery_id=%s
-    """,
-    (
-        lottery["lottery_id"],
-    )
-)
-
-
-winner_check = cursor.fetchone()
-
-
-if winner_check["total"] > 0:
-
-    st.warning(
-        "Winner already selected for this lottery"
-    )
-
-    cursor.close()
-    conn.close()
-
-    st.stop()
-
-
-
-# ==============================
 # SOLD TICKETS
 # ==============================
 
 cursor.execute(
     """
     SELECT
-        t.ticket_id,
-        t.ticket_no,
-        t.buyer_id,
-        u.full_name
+
+        t.id,
+        t.ticket_number,
+        t.lottery_type,
+        t.ticket_price,
+
+        u.full_name,
+        u.phone
+
 
     FROM tickets t
 
+
     JOIN users u
-    ON t.buyer_id=u.user_id
+
+        ON t.user_id = u.id
+
 
     WHERE t.status='Sold'
 
-    AND t.lottery_id=%s
-    """,
-    (
-        lottery["lottery_id"],
-    )
+    AND t.ticket_number IS NOT NULL
+
+    ORDER BY t.ticket_number
+
+    """
 )
 
 
@@ -120,75 +67,34 @@ tickets = cursor.fetchall()
 
 
 
-sold_count = len(tickets)
+st.subheader("🎟 Sold Tickets")
 
 
-st.write(
-    "Sold Tickets:",
-    sold_count
-)
+if not tickets:
 
-
-
-if sold_count == 0:
-
-    st.warning(
-        "No sold tickets available"
+    st.info(
+        "No approved tickets available for draw."
     )
 
     st.stop()
 
 
 
-# ==============================
-# FINANCIAL CALCULATION
-# ==============================
+for ticket in tickets:
 
-ticket_price = float(
-    lottery["ticket_price"]
-)
+    st.write(
+        f"""
+Ticket Number: {ticket['ticket_number']}
 
+Customer: {ticket['full_name']}
 
-commission_percent = float(
-    lottery["commission_percent"]
-)
+Phone: {ticket['phone']}
 
+Lottery: {ticket['lottery_type']}
+"""
+    )
 
-total_sales = sold_count * ticket_price
-
-
-commission = (
-    total_sales *
-    commission_percent / 100
-)
-
-
-prize_pool = (
-    total_sales -
-    commission
-)
-
-
-
-st.write(
-    "Total Sales:",
-    total_sales,
-    "ETB"
-)
-
-
-st.write(
-    f"Commission ({commission_percent}%):",
-    commission,
-    "ETB"
-)
-
-
-st.write(
-    "Prize Pool:",
-    prize_pool,
-    "ETB"
-)
+    st.divider()
 
 
 
@@ -196,7 +102,10 @@ st.write(
 # DRAW BUTTON
 # ==============================
 
-if st.button("🎲 Draw Winner"):
+if st.button(
+    "🎉 Run Lottery Draw",
+    use_container_width=True
+):
 
 
     winner = random.choice(
@@ -204,58 +113,14 @@ if st.button("🎲 Draw Winner"):
     )
 
 
-    # Save winner
-
-    cursor.execute(
-        """
-        INSERT INTO winners
-        (
-        lottery_id,
-        ticket_id,
-        buyer_id,
-        prize_amount
-        )
-
-        VALUES
-        (%s,%s,%s,%s)
-
-        """,
-        (
-        lottery["lottery_id"],
-        winner["ticket_id"],
-        winner["buyer_id"],
-        prize_pool
-        )
-    )
-
-
-
-    # Close lottery
-
-    cursor.execute(
-        """
-        UPDATE lotteries
-
-        SET status='Closed'
-
-        WHERE lottery_id=%s
-        """,
-        (
-        lottery["lottery_id"],
-        )
-    )
-
-
-
-    conn.commit()
-
-
-
-    st.balloons()
-
-
     st.success(
-        "🎉 Congratulations!"
+        "🎊 Winner Selected!"
+    )
+
+
+    st.write(
+        "Winning Ticket:",
+        winner["ticket_number"]
     )
 
 
@@ -266,15 +131,8 @@ if st.button("🎲 Draw Winner"):
 
 
     st.write(
-        "Ticket No:",
-        winner["ticket_no"]
-    )
-
-
-    st.write(
-        "Prize:",
-        prize_pool,
-        "ETB"
+        "Phone:",
+        winner["phone"]
     )
 
 
