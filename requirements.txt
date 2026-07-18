@@ -1,8 +1,6 @@
 streamlit
+mysql-connector-python
 pandas
-pymysql
 plotly
 openpyxl
-python-dotenv
-bcrypt
-mysql-connector-python
+Pillow
