@@ -44,7 +44,7 @@ try:
 
 
     # ======================================================
-    # GET PENDING PAYMENT TICKET
+    # GET CUSTOMER TICKET
     # ======================================================
 
     cursor.execute(
@@ -56,7 +56,7 @@ try:
             status
         FROM tickets
         WHERE user_id=%s
-        AND status='Pending Payment'
+        AND status IN ('Pending Payment','Payment Submitted')
         LIMIT 1
         """,
         (user_id,)
@@ -82,7 +82,9 @@ try:
 
     cursor.execute(
         """
-        SELECT id
+        SELECT
+            id,
+            status
         FROM payments
         WHERE ticket_id=%s
         AND user_id=%s
@@ -108,9 +110,8 @@ try:
 
 
     # ======================================================
-    # SHOW PAYMENT INFORMATION
+    # PAYMENT INFORMATION
     # ======================================================
-
 
     st.info(
         f"""
@@ -118,19 +119,23 @@ Lottery Type: {ticket['lottery_type']}
 
 Amount: {ticket['ticket_price']} ETB
 
-Ticket number will be assigned after payment approval.
+🎟 Ticket number will be assigned after payment approval.
 """
     )
 
 
 
     # ======================================================
-    # LOAD BANKS
+    # LOAD ACTIVE BANKS
     # ======================================================
 
     cursor.execute(
         """
-        SELECT *
+        SELECT
+            bank_id,
+            bank_name,
+            account_name,
+            account_number
         FROM banks
         WHERE status='Active'
         ORDER BY bank_name
@@ -173,11 +178,11 @@ Ticket number will be assigned after payment approval.
 
     st.info(
         f"""
-Bank: {bank_info['CBE']}
+Bank: {bank_info['bank_name']}
 
-Account Name: {bank_info['Walfaanaa Magarsaa']}
+Account Name: {bank_info['account_name']}
 
-Account Number: {bank_info['1000177190024']}
+Account Number: {bank_info['account_number']}
 """
     )
 
@@ -221,8 +226,8 @@ Account Number: {bank_info['1000177190024']}
             )
 
 
-        elif transaction_reference.strip()=="":
-            
+        elif transaction_reference.strip() == "":
+
             st.error(
                 "Please enter transaction reference."
             )
@@ -269,7 +274,7 @@ Account Number: {bank_info['1000177190024']}
 
 
 
-            # Insert payment
+            # Insert payment record
 
             cursor.execute(
                 """
@@ -322,7 +327,6 @@ Account Number: {bank_info['1000177190024']}
 
 
             conn.commit()
-
 
 
             st.success(
