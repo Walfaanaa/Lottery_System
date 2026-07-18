@@ -1,6 +1,5 @@
 import streamlit as st
 from database import get_connection
-import os
 
 
 st.title("🛠 Admin Dashboard")
@@ -10,22 +9,20 @@ st.title("🛠 Admin Dashboard")
 # CHECK LOGIN
 # ==============================
 
-if "logged_in" not in st.session_state:
+if not st.session_state.get("logged_in", False):
     st.warning("Please login first")
     st.stop()
 
 
-if st.session_state.get("role") != "Admin":
+if st.session_state.get("role","").lower() != "admin":
     st.error("Access denied. Admin only.")
     st.stop()
 
 
-# ==============================
-# DATABASE CONNECTION
-# ==============================
 
 conn = get_connection()
 cursor = conn.cursor(dictionary=True)
+
 
 
 # ==============================
@@ -38,37 +35,56 @@ st.subheader("💳 Pending Payments")
 cursor.execute(
     """
     SELECT
-        p.payment_id,
-        p.amount,
-        p.transaction_reference,
-        p.receipt_file,
-        p.status,
 
-        t.ticket_id,
-        t.ticket_no,
+        p.id AS payment_id,
+
+        p.amount,
+
+        p.transaction_reference,
+
+        p.payment_status,
+
+        t.id AS ticket_id,
+
+        t.ticket_number,
+
+        t.lottery_type,
 
         u.full_name,
 
+        u.phone,
+
         b.bank_name,
+
         b.account_number
+
 
     FROM payments p
 
+
     JOIN tickets t
-        ON p.ticket_id = t.ticket_id
+        ON p.ticket_id = t.id
+
 
     JOIN users u
-        ON p.buyer_id = u.user_id
+        ON p.user_id = u.id
+
 
     JOIN banks b
         ON p.bank_id = b.bank_id
 
-    WHERE p.status='Pending'
+
+    WHERE p.payment_status='Pending'
+
+    ORDER BY p.payment_date DESC
+
     """
 )
 
 
+
 payments = cursor.fetchall()
+
 
 
 if not payments:
@@ -78,29 +94,30 @@ if not payments:
 
 else:
 
+
     for payment in payments:
 
-        st.write("--------------------------")
+
+        st.divider()
+
 
         st.write(
-            "Buyer:",
+            "Customer:",
             payment["full_name"]
         )
 
-        st.write(
-            "Ticket No:",
-            payment["ticket_no"]
-        )
 
         st.write(
-            "Bank:",
-            payment["bank_name"]
+            "Phone:",
+            payment["phone"]
         )
 
+
         st.write(
-            "Account Number:",
-            payment["account_number"]
+            "Lottery:",
+            payment["lottery_type"]
         )
+
 
         st.write(
             "Amount:",
@@ -108,52 +125,81 @@ else:
             "ETB"
         )
 
+
         st.write(
-            "Transaction Reference:",
+            "Transaction:",
             payment["transaction_reference"]
         )
 
 
-        # Receipt preview
+        st.write(
+            "Bank:",
+            payment["bank_name"]
+        )
 
-        receipt_path = payment["receipt_file"]
 
-        if receipt_path:
+        st.write(
+            "Account:",
+            payment["account_number"]
+        )
 
-            st.write("Receipt:")
-
-            if os.path.exists(receipt_path):
-
-                if receipt_path.lower().endswith(
-                    (".png",".jpg",".jpeg")
-                ):
-
-                    st.image(receipt_path)
-
-                else:
-
-                    st.write(receipt_path)
-
-            else:
-
-                st.warning(
-                    "Receipt file not found"
-                )
 
 
         col1, col2 = st.columns(2)
 
 
+
         # ==============================
-        # APPROVE PAYMENT
+        # APPROVE
         # ==============================
 
         with col1:
 
+
             if st.button(
-                "✅ Approve",
+                "✅ Approve Payment",
                 key=f"approve_{payment['payment_id']}"
             ):
+
+
+                # Find available ticket number 1-100
+
+                cursor.execute(
+                    """
+                    SELECT ticket_number
+                    FROM tickets
+                    WHERE ticket_number IS NOT NULL
+                    """
+                )
+
+
+                sold_numbers = [
+                    row["ticket_number"]
+                    for row in cursor.fetchall()
+                ]
+
+
+                available = [
+                    x for x in range(1,101)
+                    if x not in sold_numbers
+                ]
+
+
+                if not available:
+
+                    st.error(
+                        "All tickets sold"
+                    )
+
+                    st.stop()
+
+
+                import random
+
+                ticket_number = random.choice(
+                    available
+                )
+
 
 
                 # Update payment
@@ -162,9 +208,9 @@ else:
                     """
                     UPDATE payments
 
-                    SET status='Approved'
+                    SET payment_status='Approved'
 
-                    WHERE payment_id=%s
+                    WHERE id=%s
                     """,
                     (
                         payment["payment_id"],
@@ -172,20 +218,23 @@ else:
                 )
 
 
-                # Update ticket
+
+                # Assign ticket
 
                 cursor.execute(
                     """
                     UPDATE tickets
 
                     SET
-                    status='Sold',
-                    sold_date=NOW()
+                    ticket_number=%s,
+                    status='Sold'
 
-                    WHERE ticket_id=%s
+                    WHERE id=%s
+
                     """,
                     (
-                        payment["ticket_id"],
+                        ticket_number,
+                        payment["ticket_id"]
                     )
                 )
 
@@ -194,34 +243,36 @@ else:
 
 
                 st.success(
-                    "Payment approved and ticket sold"
+                    f"Payment approved. Ticket Number: {ticket_number}"
                 )
+
 
                 st.rerun()
 
 
 
         # ==============================
-        # REJECT PAYMENT
+        # REJECT
         # ==============================
+
 
         with col2:
 
+
             if st.button(
-                "❌ Reject",
+                "❌ Reject Payment",
                 key=f"reject_{payment['payment_id']}"
             ):
 
-
-                # Update payment
 
                 cursor.execute(
                     """
                     UPDATE payments
 
-                    SET status='Rejected'
+                    SET payment_status='Rejected'
 
-                    WHERE payment_id=%s
+                    WHERE id=%s
+
                     """,
                     (
                         payment["payment_id"],
@@ -229,18 +280,14 @@ else:
                 )
 
 
-                # Release ticket
-
                 cursor.execute(
                     """
                     UPDATE tickets
 
-                    SET
-                    status='Available',
-                    buyer_id=NULL,
-                    payment_id=NULL
+                    SET status='Rejected'
 
-                    WHERE ticket_id=%s
+                    WHERE id=%s
+
                     """,
                     (
                         payment["ticket_id"],
@@ -252,8 +299,9 @@ else:
 
 
                 st.warning(
-                    "Payment rejected and ticket released"
+                    "Payment rejected"
                 )
+
 
                 st.rerun()
 
