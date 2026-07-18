@@ -10,37 +10,36 @@ st.title("📝 Lottery Customer Registration")
 # REGISTRATION FORM
 # ==============================
 
-full_name = st.text_input(
-    "Full Name"
-)
+with st.form("registration_form"):
 
-email = st.text_input(
-    "Email"
-)
+    full_name = st.text_input("Full Name")
 
-phone = st.text_input(
-    "Phone Number"
-)
+    email = st.text_input("Email")
 
-username = st.text_input(
-    "Username"
-)
+    phone = st.text_input("Phone Number")
 
-password = st.text_input(
-    "Password",
-    type="password"
-)
+    username = st.text_input("Username")
+
+    password = st.text_input(
+        "Password",
+        type="password"
+    )
+
+
+    submit = st.form_submit_button(
+        "Register"
+    )
 
 
 
 # ==============================
-# REGISTER BUTTON
+# PROCESS REGISTRATION
 # ==============================
 
-if st.button("Register"):
+if submit:
 
 
-    # Remove spaces
+    # Clean data
 
     full_name = full_name.strip()
     email = email.strip()
@@ -50,19 +49,27 @@ if st.button("Register"):
 
 
 
-    # ==============================
-    # VALIDATION
-    # ==============================
+    # Debug check (keep temporarily)
+
+    st.write("Full Name:", repr(full_name))
+    st.write("Email:", repr(email))
+    st.write("Phone:", repr(phone))
+    st.write("Username:", repr(username))
+    st.write("Password Length:", len(password))
+
+
+
+    # Validation
 
     if (
-        full_name == ""
-        or email == ""
-        or phone == ""
-        or username == ""
-        or password == ""
+        len(full_name) == 0
+        or len(email) == 0
+        or len(phone) == 0
+        or len(username) == 0
+        or len(password) == 0
     ):
 
-        st.warning(
+        st.error(
             "Please fill all required fields."
         )
 
@@ -76,16 +83,13 @@ if st.button("Register"):
 
     try:
 
-
         conn = get_connection()
 
         cursor = conn.cursor()
 
 
 
-        # ==============================
-        # CHECK DUPLICATE USERNAME
-        # ==============================
+        # Check duplicate username
 
         cursor.execute(
             """
@@ -93,29 +97,21 @@ if st.button("Register"):
             FROM users
             WHERE username=%s
             """,
-            (
-                username,
-            )
+            (username,)
         )
 
 
-        user_exists = cursor.fetchone()
-
-
-
-        if user_exists:
+        if cursor.fetchone():
 
             st.error(
-                "Username already exists. Please use another username."
+                "Username already exists."
             )
 
             st.stop()
 
 
 
-        # ==============================
-        # HASH PASSWORD
-        # ==============================
+        # Encrypt password
 
         hashed_password = bcrypt.hashpw(
             password.encode("utf-8"),
@@ -124,9 +120,7 @@ if st.button("Register"):
 
 
 
-        # ==============================
-        # INSERT CUSTOMER
-        # ==============================
+        # Insert customer
 
         cursor.execute(
             """
@@ -145,8 +139,8 @@ if st.button("Register"):
                 %s,
                 %s,
                 %s,
-                %s,
-                %s,
+                'customer',
+                'Active',
                 %s,
                 %s
             )
@@ -155,8 +149,6 @@ if st.button("Register"):
                 username,
                 hashed_password,
                 email,
-                "customer",
-                "Active",
                 full_name,
                 phone
             )
@@ -166,40 +158,25 @@ if st.button("Register"):
         conn.commit()
 
 
-
         st.success(
             "✅ Registration successful. Please login."
         )
 
 
-        st.info(
-            "You can now login and buy lottery tickets."
-        )
-
-
-
     except Exception as e:
 
-
         if conn:
-
             conn.rollback()
-
 
         st.error(
             f"Registration failed: {e}"
         )
 
 
-
     finally:
 
-
         if cursor:
-
             cursor.close()
 
-
         if conn:
-
             conn.close()
