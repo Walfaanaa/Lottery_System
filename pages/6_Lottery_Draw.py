@@ -140,12 +140,4 @@ if st.button(
 cursor.close()
 conn.close()
 
-winners = get_winners()
 
-for winner in winners:
-    send_sms(
-        phone=winner["phone"],
-        message=f"Congratulations {winner['full_name']}! You won {winner['prize']} ETB."
-    )
-
-st.success("Lottery completed and SMS notifications sent.")
