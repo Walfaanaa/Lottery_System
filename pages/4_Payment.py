@@ -1,3 +1,5 @@
+import os
+import uuid
 import streamlit as st
 from database import get_connection
 
@@ -183,15 +185,14 @@ Account Number: {bank_info['account_number']}
 
 
 
-    # ======================================================
-    # PAYMENT INPUT
-    # ======================================================
-
     transaction_reference = st.text_input(
-        "Transaction Reference"
-    )
+    "Transaction Reference"
+)
 
-
+receipt = st.file_uploader(
+    "Upload Payment Receipt",
+    type=["jpg", "jpeg", "png", "pdf"]
+)
 
     # ======================================================
     # SUBMIT PAYMENT
