@@ -182,39 +182,39 @@ Account Number: {bank_info['account_number']}
             with open(receipt_path, "wb") as f:
                 f.write(receipt.getbuffer())
 
-            # Insert payment
-            cursor.execute(
-                """
-                INSERT INTO payments
-                (
-                    user_id,
-                    ticket_id,
-                    bank_id,
-                    transaction_reference,
-                    amount,
-                    receipt_path,
-                    payment_status
-                )
-                VALUES
-                (
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    'Pending'
-                )
-                """,
-                (
-                    user_id,
-                    ticket["id"],
-                    bank_info["bank_id"],
-                    transaction_reference.strip(),
-                    ticket["ticket_price"],
-                    receipt_path
-                )
-            )
+           # Insert payment
+cursor.execute(
+    """
+    INSERT INTO payments
+    (
+        user_id,
+        ticket_id,
+        bank_id,
+        transaction_reference,
+        amount,
+        receipt_path,
+        payment_status
+    )
+    VALUES
+    (
+        %s,
+        %s,
+        %s,
+        %s,
+        %s,
+        %s,
+        'Pending'
+    )
+    """,
+    (
+        user_id,
+        ticket["id"],
+        bank_info["bank_id"],
+        transaction_reference.strip(),
+        ticket["ticket_price"],
+        receipt_path
+    )
+)
 
             # Update ticket
             cursor.execute(
